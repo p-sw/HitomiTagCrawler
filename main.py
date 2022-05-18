@@ -1,15 +1,25 @@
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
+import sqlite3
+
+nowtime = datetime.now()
+db = sqlite3.connect(f'Tags_[{nowtime.year}-{nowtime.month}-{nowtime.day}].db')
+cursor = db.cursor()
+
+table_cr = '''
+CREATE TABLE IF NOT EXISTS Tags (
+    Prefix varchar(255),
+    Tag varchar(255),
+    PostLength int
+)
+'''
+
+cursor.execute(table_cr)
+db.commit()
 
 FEMALE = '♀'
 MALE = '♂'
-
-nowtime = datetime.now()
-filename_format = f"tags [{nowtime.year}-{nowtime.month}-{nowtime.day}].txt"
-
-# save file init
-save_file = open(filename_format, "w", encoding="utf-8")
 
 for alphabet_num in range(ord('a'), ord('z')+1):
     api_url = f'https://hitomi.la/alltags-{chr(alphabet_num)}.html'
@@ -20,16 +30,17 @@ for alphabet_num in range(ord('a'), ord('z')+1):
         for item in posts.find_all('li', recursive=False):
             tag = item.get_text()
             tag = tag.replace(" ", "_")
+            tag_num = tag[tag.index('(')+1:tag.index(')')]
             tag = tag[:tag.index('(')]
+            prefix = "tag"
             if FEMALE in tag:
-                tag = "female:"+tag[:tag.index(FEMALE)]
+                prefix = "female"
+                tag = tag[:tag.index(FEMALE)]
             elif MALE in tag:
-                tag = "male:"+tag[:tag.index(MALE)]
-            else:
-                tag = "tag:"+tag
+                prefix = "male"
+                tag = tag[:tag.index(MALE)]
             if tag[-1] == '_':
                 tag = tag[:-1]
-            # tag save
-            save_file.write(tag+"\n")
-
-save_file.close()
+            print(f'("{prefix}", "{tag}", {tag_num})')
+            cursor.execute(f'INSERT INTO Tags VALUES ("{prefix}", "{tag}", {tag_num})')
+db.commit()
